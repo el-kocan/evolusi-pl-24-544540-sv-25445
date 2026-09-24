@@ -41,24 +41,43 @@ main (Production Ready & Protected)
 
 ---
 
-## ⚙️ Continuous Integration (GitHub Actions)
+## ⚙️ Pipeline CI/CD 4 Tahap (GitHub Actions)
 
-Pipeline otomatis dikonfigurasi pada `.github/workflows/ci.yml` dengan **3 Job mandiri** yang berjalan paralel setiap kali terjadi `push` atau `pull_request` ke cabang `main` dan `dev`:
+Pipeline otomatis dikonfigurasi pada `.github/workflows/deploy.yml` dengan **4 tahap berantai** menggunakan dependensi `needs:`:
 
-1. **Job 1: `Code Quality & Lint (Laravel Pint)`**
-   * Menginisialisasi runner Ubuntu dengan runtime **PHP 8.3**.
-   * Memasang dependensi Composer.
-   * Menjalankan standarisasi kode dan *linter* otomatis (`./vendor/bin/pint --test`).
+$$\text{build} \longrightarrow \text{test} \longrightarrow \text{staging} \longrightarrow \text{production (khusus branch main)}$$
 
-2. **Job 2: `Backend Tests (PHPUnit)`**
-   * Menginisialisasi runner Ubuntu dengan runtime **PHP 8.3**.
-   * Memasang dependensi Composer.
-   * Menjalankan suite pengujian unit dan fitur (`php artisan test`).
+1. **Job 1: `build`**
+   * Mengunduh dependensi Composer (`composer install --no-dev`).
+   * Mengompilasi aset antarmuka menggunakan Vite (`npm run build`).
+   * Menyimpan artefak `vendor/` dan `public/build/` (*build artifact*).
 
-3. **Job 3: `Frontend Build (Vite)`**
-   * Menginisialisasi runner Ubuntu dengan runtime **Node.js 22**.
-   * Memasang dependensi frontend melalui `npm ci`.
-   * Memvalidasi bahwa *bundle asset* CSS & JS dapat dikompilasi secara bersih (`npm run build`).
+2. **Job 2: `test`**
+   * Bergantung pada job `build` (`needs: build`).
+   * Menyiapkan basis data pengujian sementara di memori (SQLite `:memory:`).
+   * Menjalankan seluruh pengujian unit dan fitur (`php artisan test`). Jika pengujian gagal di sini, job berikutnya otomatis dibatalkan.
+
+3. **Job 3: `staging`**
+   * Bergantung pada job `test` (`needs: test`).
+   * Melakukan simulasi deployment otomatis ke server tiruan (*mock staging*) tanpa risiko.
+
+4. **Job 4: `production`**
+   * Bergantung pada job `staging` (`needs: staging`).
+   * **Dilindungi:** Hanya dieksekusi pada cabang **`main`** (`if: github.ref == 'refs/heads/main'`) dan menggunakan GitHub Environment `production` dengan *required reviewer*.
+   * Mensimulasikan 7 langkah berurutan dari skrip [`deploy.sh`](file:///deploy.sh).
+
+---
+
+## 📜 Skrip Deployment (`deploy.sh`)
+
+Berkas [`deploy.sh`](file:///deploy.sh) dilengkapi `set -e` agar proses berhenti jika terjadi kesalahan, dengan urutan 7 langkah wajib:
+1. `php artisan down --retry=60` (Kunci pintu - mode pemeliharaan)
+2. `git pull origin main` (Ambil kode terbaru)
+3. `composer install --no-dev --optimize-autoloader` (Pasang dependensi produksi)
+4. `php artisan migrate --force` (Ubah skema basis data)
+5. `php artisan config:cache && php artisan route:cache && php artisan view:cache` (Bangun ulang cache)
+6. `php artisan queue:restart` (Muat ulang pekerja antrean)
+7. `php artisan up` (Buka pintu kembali - rilis)
 
 ---
 
