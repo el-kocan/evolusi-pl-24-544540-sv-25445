@@ -38,6 +38,9 @@
                     <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse"></span>
                     CI / CD Ready
                 </span>
+                <a href="{{ route('tasks.index') }}" class="text-xs font-medium text-white px-3.5 py-1.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 transition shadow-lg shadow-indigo-600/20">
+                    Kelola Tugas (CRUD) &rarr;
+                </a>
                 <a href="https://github.com/el-kocan/evolusi-pl-24-544540-sv-25445" target="_blank" class="text-xs font-medium text-slate-300 hover:text-white px-3.5 py-1.5 rounded-lg bg-slate-900 border border-slate-700 hover:border-slate-600 transition">
                     GitHub Repo &rarr;
                 </a>
