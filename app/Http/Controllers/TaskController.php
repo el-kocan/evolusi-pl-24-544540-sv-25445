@@ -5,10 +5,21 @@ namespace App\Http\Controllers;
 use App\Models\Task;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
+use Illuminate\Http\JsonResponse;
 use Illuminate\View\View;
 
 class TaskController extends Controller
 {
+    /**
+     * Return tasks for the Vue frontend.
+     */
+    public function apiIndex(): JsonResponse
+    {
+        return response()->json([
+            'data' => Task::latest()->get(),
+        ]);
+    }
+
     /**
      * Display a listing of tasks.
      */
