@@ -10,6 +10,20 @@ class TaskTest extends TestCase
 {
     use RefreshDatabase;
 
+    public function test_vue_can_read_tasks_from_json_api(): void
+    {
+        Task::create([
+            'title' => 'Tugas dari API',
+            'description' => 'Data untuk Vue',
+        ]);
+
+        $response = $this->getJson('/api/tugas');
+
+        $response->assertOk()
+            ->assertJsonPath('data.0.title', 'Tugas dari API')
+            ->assertJsonPath('data.0.is_completed', false);
+    }
+
     public function test_user_can_view_tasks_index_page(): void
     {
         $response = $this->get(route('tasks.index'));
