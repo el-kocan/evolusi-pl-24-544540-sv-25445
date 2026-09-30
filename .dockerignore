@@ -4,6 +4,7 @@ vendor
 .git
 .env
 .env.*
+!.env.example
 .phpunit.cache
 *.log
 storage/*.key
