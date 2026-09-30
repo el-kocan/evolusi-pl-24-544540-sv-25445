@@ -4,13 +4,17 @@ import { onMounted, ref } from 'vue';
 const tasks = ref([]);
 const loading = ref(true);
 const error = ref('');
-const apiUrl = import.meta.env.VITE_API_URL;
+const apiUrl = import.meta.env.VITE_API_URL?.replace(/\/$/, '');
 
 async function loadTasks() {
   loading.value = true;
   error.value = '';
 
   try {
+    if (!apiUrl) {
+      throw new Error('VITE_API_URL belum dikonfigurasi di frontend/.env');
+    }
+
     const response = await fetch(`${apiUrl}/tugas`);
     if (!response.ok) {
       throw new Error(`API gagal merespons (${response.status})`);
