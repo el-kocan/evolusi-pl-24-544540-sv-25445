@@ -29,7 +29,7 @@
                     </svg>
                 </div>
                 <div>
-                    <h1 class="font-bold text-lg leading-tight text-white">Evolusi PL</h1>
+                    <h1 class="font-bold text-lg leading-tight text-white">Evolusi PL v2</h1>
                     <p class="text-xs text-slate-400">Universitas Gadjah Mada</p>
                 </div>
             </div>

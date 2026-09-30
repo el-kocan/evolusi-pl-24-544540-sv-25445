@@ -1,0 +1,10 @@
+node_modules
+frontend/node_modules
+vendor
+.git
+.env
+.env.*
+!.env.example
+.phpunit.cache
+*.log
+storage/*.key
