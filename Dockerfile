@@ -17,7 +17,7 @@ RUN apk add --no-cache \
 
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-WORKDIR /app
+WORKDIR /var/www/html
 
 # Cache layer: Salin composer
 COPY composer.json composer.lock ./
@@ -63,7 +63,7 @@ RUN apk add --no-cache \
 WORKDIR /var/www/html
 
 # Salin HANYA hasil build aplikasi dari stage builder
-COPY --from=builder /app /var/www/html
+COPY --from=builder /var/www/html /var/www/html
 
 # Buat dan gunakan user non-root demi keamanan
 RUN addgroup -g 1000 laravel \
