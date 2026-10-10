@@ -1,59 +1,81 @@
-# 1. Base image resmi PHP 8.3 CLI berbasis Alpine Linux (ringan dan aman)
-FROM php:8.3-cli-alpine
+# ==========================================
+# STAGE 1: Builder (Tahap Membangun)
+# ==========================================
+FROM php:8.3-cli-alpine AS builder
 
-# 2. Pasang pustaka sistem dan ekstensi PHP yang dibutuhkan Laravel
+# Instalasi dependensi sistem untuk build (termasuk git, unzip, dev libs)
 RUN apk add --no-cache \
     curl \
     git \
     unzip \
     libzip-dev \
     sqlite-dev \
-    sqlite \
     oniguruma-dev \
     libxml2-dev \
     linux-headers \
-    && docker-php-ext-install \
-    pdo_sqlite \
-    mbstring \
-    xml \
-    ctype \
-    bcmath
+    && docker-php-ext-install pdo_sqlite mbstring xml ctype bcmath
 
-# 3. Salin Composer biner dari image resmi Composer
 COPY --from=composer:2 /usr/bin/composer /usr/bin/composer
 
-# 4. Tentukan working directory aplikasi di dalam container
-WORKDIR /var/www/html
+WORKDIR /app
 
-# ==============================================================================
-# STRATEGI DOCKER LAYER CACHING:
-# Salin composer.json dan composer.lock TERLEBIH DAHULU sebelum kode aplikasi.
-# Hal ini membuat layer instalasi dependensi (RUN composer install) di-cache.
-# Jika kode aplikasi diubah tanpa mengubah dependensi, langkah ini tidak akan
-# diunduh/dijalankan ulang sehingga proses build ketiga jauh lebih cepat.
-# ==============================================================================
+# Cache layer: Salin composer
 COPY composer.json composer.lock ./
-
-# Pasang dependensi tanpa dev package dan tanpa script autoloader
 RUN composer install --no-dev --no-interaction --no-scripts --no-autoloader --prefer-dist
 
-# 5. Salin seluruh kode aplikasi ke dalam container
+# Salin kode aplikasi
 COPY . .
 
-# 6. Selesaikan pembuatan autoloader yang teroptimasi
+# Generate autoloader teroptimasi
 RUN composer dump-autoload --optimize
 
-# 7. Konfigurasi environment, application key, database SQLite, dan migrasi tabel
+# Persiapkan environment dan database SQLite
 RUN if [ ! -f .env ]; then cp .env.example .env; fi \
     && php artisan key:generate \
+    && mkdir -p database \
     && touch database/database.sqlite \
     && php artisan migrate --force \
     && php artisan config:cache \
-    && php artisan route:cache \
-    && chown -R www-data:www-data storage bootstrap/cache database
+    && php artisan route:cache
 
-# 8. Ekspos port 8000
+# ==========================================
+# STAGE 2: Runtime (Tahap Menjalankan)
+# ==========================================
+FROM php:8.3-cli-alpine
+
+# Instalasi ekstensi PHP dengan cara ringan: 
+# pakai virtual packages (.build-deps) untuk compile, lalu langsung dihapus.
+RUN apk add --no-cache \
+    curl \
+    sqlite-libs \
+    libzip \
+    oniguruma \
+    libxml2 \
+    && apk add --no-cache --virtual .build-deps \
+       sqlite-dev \
+       oniguruma-dev \
+       libxml2-dev \
+       libzip-dev \
+       linux-headers \
+    && docker-php-ext-install pdo_sqlite mbstring xml ctype bcmath \
+    && apk del .build-deps
+
+WORKDIR /var/www/html
+
+# Salin HANYA hasil build aplikasi dari stage builder
+COPY --from=builder /app /var/www/html
+
+# Buat dan gunakan user non-root demi keamanan
+RUN addgroup -g 1000 laravel \
+    && adduser -G laravel -u 1000 -s /bin/sh -D laravel \
+    && chown -R laravel:laravel /var/www/html
+
+USER laravel
+
+# Tentukan HEALTHCHECK agar container bisa dimonitor (status healthy)
+HEALTHCHECK --interval=30s --timeout=30s --start-period=5s --retries=3 \
+  CMD curl -f http://localhost:8000/ || exit 1
+
 EXPOSE 8000
 
-# 9. Jalankan server Laravel bawaan yang mendengarkan seluruh antarmuka jaringan (0.0.0.0)
 CMD ["php", "artisan", "serve", "--host=0.0.0.0", "--port=8000"]
